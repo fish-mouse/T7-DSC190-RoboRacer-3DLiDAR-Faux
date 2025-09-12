@@ -128,7 +128,17 @@ We thank Moritz Wagner ([moritz.s.wagner@tum.de](mailto:moritz.s.wagner@tum.de))
 
 If you find our RoboRacer/F1Tenth software useful, please consider citing:
 ```
-@ARTICLE{
+@INPROCEEDINGS{jahncke2025,
+  author={Jahncke, Felix and Betz, Johannes},
+  booktitle={2025 IEEE Intelligent Vehicles Symposium (IV)}, 
+  title={MIND-Stack: Modular, Interpretable, End-to-End Differentiability for Autonomous Navigation}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={1179-1186},
+  doi={10.1109/IV64158.2025.11097814}}
+
+@ARTICLE{betz2024,
   author={Betz, Johannes and Zheng, Hongrui and Jahncke, Felix and Zang, Zirui and Sauerbeck, Florian and Zheng, Y. Rosa and Biswas, Joydeep and Krovi, Venkat and Mangharam, Rahul},
   journal={IEEE Transactions on Intelligent Vehicles}, 
   title={F1TENTH: Enhancing Autonomous Systems Education Through Hands-On Learning and Competition}, 
