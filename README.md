@@ -148,3 +148,7 @@ If you find our RoboRacer/F1Tenth software useful, please consider citing:
   pages={1-13},
   doi={10.1109/TIV.2024.3495227}}
 ```
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=TUM-AVS/RoboRacer-3DLiDAR&type=date&legend=top-left)](https://www.star-history.com/#TUM-AVS/RoboRacer-3DLiDAR&type=date&legend=top-left)
