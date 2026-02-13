@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  localization:
+    build: .
+    container_name: lidar_localization_test
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./scripts:/workspace/scripts
+      - ./maps:/workspace/maps
+      - ./data:/workspace/test_data
+      - ./logs:/workspace/logs
+      - /sys/class/thermal:/sys/class/thermal:ro  # For temperature monitoring
+    environment:
+      - ROS_DOMAIN_ID=0
+      - DISPLAY=${DISPLAY}
+    devices:
+      - /dev/dri:/dev/dri  # GPU access if needed
+    command: python3 /workspace/scripts/run_localization_test.py
