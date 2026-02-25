@@ -15,7 +15,7 @@ class PointCloudPlayer(Node):
     def __init__(self, pcd_file=None):
         super().__init__('pointcloud_player')
         
-        self.publisher = self.create_publisher(PointCloud2, '/input_cloud', 10)
+        self.publisher = self.create_publisher(PointCloud2, '/livox/lidar', 10)
         self.timer = self.create_timer(0.1, self.publish_pointcloud)  # 10 Hz
         
         self.pcd_file = pcd_file

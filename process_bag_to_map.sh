@@ -1,53 +1,67 @@
 #!/bin/bash
-# Convert bag file to .pcd map - fully containerized
+# Convert ROS2 bag file to .pcd map - fully containerized
+# Uses Livox MID-360 rosbag2 data (native ROS2 format)
 
 set -e
 
-BAG_FILE="hdl_501_filtered.bag"
+BAG_DIR="rosbag2_2024_04_16-14_17_01"
+CONTAINER_BAG_DIR="/workspace/$BAG_DIR"
 
 echo "=========================================="
 echo "Creating Map from Bag File (Containerized)"
 echo "=========================================="
-echo "Bag file: $BAG_FILE"
+echo "Bag directory: $BAG_DIR"
 echo ""
 
-# Check if bag file exists on host
-if [ ! -f "$BAG_FILE" ]; then
-    echo "❌ Error: Bag file not found: $BAG_FILE"
-    echo "Expected location: $(pwd)/$BAG_FILE"
+# Check if bag directory exists on host
+if [ ! -d "$BAG_DIR" ]; then
+    echo "Error: Bag directory not found: $BAG_DIR"
+    echo "Expected location: $(pwd)/$BAG_DIR"
     echo ""
-    echo "Make sure you've extracted it:"
-    echo "  tar -xzf hdl_501_filtered.bag.tar.gz"
+    echo "Make sure you have the rosbag2 folder containing:"
+    echo "  $BAG_DIR/metadata.yaml"
+    echo "  $BAG_DIR/*.db3"
+    echo ""
+    echo "Download from: https://zenodo.org/records/14841855"
     exit 1
 fi
 
-# Start container
-echo "[1/6] Starting Docker container..."
+# Verify bag contents
+if [ ! -f "$BAG_DIR/metadata.yaml" ]; then
+    echo "Error: metadata.yaml not found in $BAG_DIR/"
+    exit 1
+fi
+
+DB3_COUNT=$(find "$BAG_DIR" -name "*.db3" | wc -l | tr -d ' ')
+if [ "$DB3_COUNT" -eq 0 ]; then
+    echo "Error: No .db3 files found in $BAG_DIR/"
+    exit 1
+fi
+
+echo "Found $DB3_COUNT .db3 file(s) in bag directory"
+
+# Start container (bag dir is mounted via docker-compose volume)
+echo ""
+echo "[1/5] Starting Docker container..."
 docker-compose up -d
 sleep 3
 
-# Copy bag file into container
-echo "[2/6] Copying bag file to container..."
-docker cp "$BAG_FILE" lidar_localization_test:/workspace/
-echo "✅ Bag file copied"
-
-# Check bag info inside container (no host installation needed!)
+# Verify bag is accessible inside container
 echo ""
-echo "[3/6] Inspecting bag file (inside container)..."
+echo "[2/5] Inspecting bag file (inside container)..."
 docker exec lidar_localization_test bash -c "
-    # Install rosbag tools inside container
-    apt-get update -qq
-    apt-get install -y -qq python3-rosbag ros-humble-rosbag2-bag-v2 > /dev/null 2>&1
-    
-    echo '─────────────────────────────────────────'
+    source /opt/ros/humble/setup.bash
+
+    echo '-----------------------------------------------'
     echo 'Bag file information:'
-    echo '─────────────────────────────────────────'
-    rosbag info /workspace/$BAG_FILE | head -20
-    echo '─────────────────────────────────────────'
+    echo '-----------------------------------------------'
+    ros2 bag info $CONTAINER_BAG_DIR
+    echo '-----------------------------------------------'
 "
 
 echo ""
-read -p "Does the bag have a point cloud topic? Check above for topics like /velodyne_points or /points_raw. Continue? [y/N] " -n 1 -r
+echo "Expected topics: /livox/lidar (PointCloud2) and /livox/imu (Imu)"
+read -p "Does the bag have the expected point cloud topic? Continue? [y/N] " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     echo "Cancelled."
@@ -56,76 +70,98 @@ fi
 
 # Run the mapping process
 echo ""
-echo "[4/6] Running SLAM mapping (this takes 3-5 minutes)..."
+echo "[3/5] Running SLAM mapping (this may take 5-10 minutes)..."
 echo "Processing bag file and creating map..."
 docker exec lidar_localization_test bash -c "
     set -e
-    
+
     source /opt/ros/humble/setup.bash
     source /workspace/install/setup.bash
-    
+
+    # Publish the base_link -> livox_frame static TF (identity)
+    # The launch file in the cloned repo has this commented out, so we run it manually.
+    echo 'Starting static_transform_publisher (base_link -> livox_frame)...'
+    ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link livox_frame > /tmp/tf.log 2>&1 &
+    TF_PID=\$!
+    sleep 2
+
     echo 'Starting SLAM node...'
     ros2 launch lidarslam lidarslam.launch.py > /tmp/slam.log 2>&1 &
     SLAM_PID=\$!
-    
-    echo 'Waiting for initialization (10 seconds)...'
-    sleep 10
-    
-    echo 'Playing bag file at 2x speed...'
-    ros2 bag play -s rosbag_v2 /workspace/$BAG_FILE --rate 2.0 2>&1 | head -10
-    
-    echo 'Bag playback complete. Waiting for processing...'
-    sleep 5
-    
+
+    echo 'Waiting for SLAM initialization (15 seconds)...'
+    sleep 15
+
+    # Verify TF is available before playing bag
+    echo 'Verifying TF tree...'
+    ros2 run tf2_ros tf2_echo base_link livox_frame --wait-for-server 2>&1 | head -5 &
+    sleep 3
+
+    echo 'Playing Livox MID-360 bag at 1x speed...'
+    echo '  Topics: /livox/lidar (PointCloud2), /livox/imu (Imu)'
+    echo '  Duration: ~277 seconds. Please wait...'
+    ros2 bag play $CONTAINER_BAG_DIR --rate 1.0 --disable-keyboard-controls
+
+    echo 'Bag playback complete. Waiting for SLAM to finish processing...'
+    sleep 20
+
     echo 'Saving map...'
     ros2 service call /map_save std_srvs/Empty
-    
-    sleep 3
-    
+
+    sleep 5
+
     echo 'Stopping SLAM node...'
     kill \$SLAM_PID 2>/dev/null || true
-    
+    kill \$TF_PID 2>/dev/null || true
+
     echo 'Checking if map was created...'
     find /workspace -name 'map.pcd' -ls
+
+    echo ''
+    echo 'SLAM log (last 20 lines):'
+    tail -20 /tmp/slam.log
 "
 
-# Find and copy the map back to host
+# Copy map to the mounted maps directory
 echo ""
-echo "[5/6] Copying map to host..."
+echo "[4/5] Copying map to output..."
 docker exec lidar_localization_test bash -c "
-    # Find the map file
-    MAP_FILE=\$(find /workspace -name 'map.pcd' -type f | head -1)
-    
+    MAP_FILE=\$(find /workspace -name 'map.pcd' -type f -not -path '/workspace/maps/*' | head -1)
+
     if [ -n \"\$MAP_FILE\" ]; then
         echo \"Found map at: \$MAP_FILE\"
         cp \"\$MAP_FILE\" /workspace/maps/map.pcd
         ls -lh /workspace/maps/map.pcd
     else
-        echo '❌ Error: map.pcd not found'
-        exit 1
+        # Check if it was saved directly to maps
+        if [ -f /workspace/maps/map.pcd ]; then
+            echo 'Map already in /workspace/maps/map.pcd'
+            ls -lh /workspace/maps/map.pcd
+        else
+            echo 'Error: map.pcd not found'
+            exit 1
+        fi
     fi
 "
 
-docker cp lidar_localization_test:/workspace/maps/map.pcd ./maps/
-
-# Verify
+# Verify on host
 echo ""
-echo "[6/6] Verifying..."
+echo "[5/5] Verifying..."
 if [ -f "./maps/map.pcd" ]; then
     echo ""
     echo "=========================================="
-    echo "✅ SUCCESS!"
+    echo "SUCCESS!"
     echo "=========================================="
     echo "Map created at: ./maps/map.pcd"
     ls -lh ./maps/map.pcd
     echo ""
-    echo "Next step: Run the test"
+    echo "Next step: Run the CPU test"
     echo "  ./run_test.sh"
     echo "=========================================="
 else
     echo ""
     echo "=========================================="
-    echo "❌ ERROR"
+    echo "ERROR"
     echo "=========================================="
     echo "Map file was not created successfully"
     echo ""
@@ -133,8 +169,8 @@ else
     echo "1. Check SLAM logs:"
     echo "   docker exec lidar_localization_test cat /tmp/slam.log"
     echo ""
-    echo "2. Check if bag played correctly:"
-    echo "   docker exec lidar_localization_test ls -lh /workspace/*.bag"
+    echo "2. Check if bag exists in container:"
+    echo "   docker exec lidar_localization_test ros2 bag info $CONTAINER_BAG_DIR"
     echo ""
     echo "3. Search for any .pcd files:"
     echo "   docker exec lidar_localization_test find /workspace -name '*.pcd'"
@@ -143,8 +179,4 @@ else
 fi
 
 echo ""
-echo "Cleaning up..."
-# Optional: stop container
-# docker-compose down
-
 echo "Done!"

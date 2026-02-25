@@ -23,17 +23,17 @@ def generate_launch_description():
         output='screen'
         )
 
-    # tf = launch_ros.actions.Node(
-    #     package='tf2_ros',
-    #     executable='static_transform_publisher',
-    #     arguments=['0','0','0','0','0','0','1','base_link','livox_frame']
-    #     )
+    tf = launch_ros.actions.Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['0','0','0','0','0','0','1','base_link','livox_frame']
+        )
 
     return launch.LaunchDescription([
         launch.actions.DeclareLaunchArgument(
             'mapping_param_dir',
             default_value=mapping_param_dir,
             description='Full path to mapping parameter file to load'),
-        # tf,
+        tf,
         mapping
             ])

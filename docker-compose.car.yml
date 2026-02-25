@@ -1,16 +1,15 @@
 services:
   localization:
-    build: .
     image: nabilafifahq/lidar-localization-test:latest
     container_name: lidar_localization_test
     privileged: true
     network_mode: host
+    entrypoint: []
+    command: ["bash", "-c", "source /opt/ros/humble/setup.bash && source /workspace/install/setup.bash && sleep infinity"]
     volumes:
       - ./scripts:/workspace/scripts
       - ./maps:/workspace/maps
-      - ./data:/workspace/test_data
       - ./logs:/workspace/logs
       - ./rosbag2_2024_04_16-14_17_01:/workspace/rosbag2_2024_04_16-14_17_01:ro
     environment:
       - ROS_DOMAIN_ID=0
-    command: sleep infinity

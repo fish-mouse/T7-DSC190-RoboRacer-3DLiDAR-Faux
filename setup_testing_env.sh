@@ -361,7 +361,7 @@ class PointCloudPlayer(Node):
     def __init__(self):
         super().__init__('pointcloud_player')
         
-        self.publisher = self.create_publisher(PointCloud2, '/input_cloud', 10)
+        self.publisher = self.create_publisher(PointCloud2, '/livox/lidar', 10)
         self.timer = self.create_timer(0.1, self.publish_pointcloud)
         
         self.frame_id = 'livox_frame'
@@ -523,7 +523,7 @@ echo "Starting localization CPU test..."
 
 if [ ! -f "./maps/map.pcd" ]; then
     echo "WARNING: No map.pcd found in ./maps/"
-    echo "Download from: https://syncandshare.lrz.de/getlink/fiCk878yuz8FvFnavZWunU/Livox_LiDAR"
+    echo "Download from: https://zenodo.org/records/14841855"
     exit 1
 fi
 

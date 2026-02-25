@@ -1,1 +1,16 @@
 .vscode/*
+
+# Large data files
+*.bag
+*.bag.tar.gz
+*.pcd
+*.db3
+rosbag2_*/
+
+# Test output
+logs/*.json
+logs/*.csv
+logs/*.log
+
+# OS files
+.DS_Store

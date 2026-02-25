@@ -23,7 +23,9 @@ The following instructions where tested and verifies on the following hard- and 
 - Jetpack 5.1.2
 - ROS2 Foxy
 
-You can find videos demonstrating the raw LiDAR data as well as 3D SLAM performance, as well as 3 rosbags via the following link: [TUM SyncAndShare](https://syncandshare.lrz.de/getlink/fiCk878yuz8FvFnavZWunU/Livox_LiDAR)
+You can find videos demonstrating the raw LiDAR data as well as 3D SLAM performance, as well as 3 rosbags via the following link: [TUM SyncAndShare](https://syncandshare.lrz.de/getlink/fiCk878yuz8FvFnavZWunU/Livox_LiDAR) *(Note: this link may be expired)*
+
+**Alternative Livox MID-360 bag data (native ROS2 rosbag2):** [Zenodo - Driving SLAM Test with Livox MID360](https://zenodo.org/records/14841855) (517 MB, by Kenji Koide / AIST)
 
 ## Setup
 1. 3D print the Livox mounting plate: [STL File](https://github.com/TUM-AVS/F1TENTH-Auxiliaries/tree/main/F1TENTH%20-%20CAD%20Files/Livox%20MID-360%20Adapter%20Plate).
